@@ -6,7 +6,14 @@
 
 #Requires –Modules Az
 
+function Clean-AzRoleOrphaned {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
+    param(
+        # Actually remove the orphaned role assignments from Azure. Default behavior only reports them.
+        [switch]$Remove,
 
+        [string]$ReportPath = ".\output_unknow.json"
+    )
 
 $list_subscriptions = Get-AzSubscription | Where-Object {$_.State -ne "Disabled"}
 $list_managementgroups = Get-AzManagementGroup
@@ -101,7 +108,30 @@ $role_assigment_export = [PSCustomObject]@{
     Subscription = [PSCustomObject]$role_assigment_data_subscriptions
 }
 
-$role_assigment_export | ConvertTo-Json -Depth 5 | Out-File -FilePath ".\output_unknow.json" -Encoding utf8
+$role_assigment_export | ConvertTo-Json -Depth 5 | Out-File -FilePath $ReportPath -Encoding utf8
+
+if (-not $Remove) {
+    Write-Host "Report only mode. No role assignments were removed. Report written to $ReportPath"
+    return $role_assigment_export
+}
+
+$all_orphaned = @($role_assigment_data_subscriptions.Values) + @($role_assigment_data_management_groups.Values) | ForEach-Object { $_ }
+
+foreach ($role_assigment in $all_orphaned) {
+
+    $target = "$($role_assigment.ObjectId) on $($role_assigment.Scope) ($($role_assigment.RoleDefinitionName))"
+
+    if ($PSCmdlet.ShouldProcess($target, "Remove orphaned role assignment")) {
+
+        Remove-AzRoleAssignment -ObjectId $role_assigment.ObjectId -Scope $role_assigment.Scope -RoleDefinitionName $role_assigment.RoleDefinitionName
+
+    }
+
+}
+
+return $role_assigment_export
+
+}
 
 
 
