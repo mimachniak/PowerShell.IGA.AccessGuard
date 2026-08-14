@@ -1,0 +1,1 @@
+# Sync data with Azure Role Assignments and Permissions  - only on scope not inherited from parent scope
