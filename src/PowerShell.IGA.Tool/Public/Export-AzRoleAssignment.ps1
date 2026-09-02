@@ -16,10 +16,19 @@ function Export-AzRoleAssignment {
         [string]$OutputFormat = 'Json',
 
         # Output file path without extension; the correct extension is appended based on -OutputFormat. Defaults to the module root.
-        [string]$OutputPath = (Join-Path (Split-Path -Parent $PSScriptRoot) "output")
+        [string]$OutputPath = (Join-Path (Split-Path -Parent $PSScriptRoot) "output"),
+
+        # Only export role assignments for Subscriptions. Default exports both Subscriptions and Management Groups.
+        [switch]$SubscriptionOnly,
+
+        # Only export role assignments for Management Groups. Default exports both Subscriptions and Management Groups.
+        [switch]$ManagementGroupOnly,
+
+        # Include role assignments inherited from a parent scope. Default only exports assignments defined directly at scope.
+        [switch]$IncludeInherited
     )
 
-$report = Get-AzRoleAssignmentReport
+$report = Get-AzRoleAssignmentReport -SubscriptionOnly:$SubscriptionOnly -ManagementGroupOnly:$ManagementGroupOnly -IncludeInherited:$IncludeInherited
 $role_assigment_data_subscriptions = $report.Subscriptions
 $role_assigment_data_management_groups = $report.ManagementGroups
 
@@ -35,15 +44,16 @@ $role_assigment_export = [PSCustomObject]@{
 switch ($OutputFormat) {
     'Json' {
         $role_assigment_export | ConvertTo-Json -Depth 5 | Out-File -FilePath "$OutputPath.json" -Encoding utf8
+        Write-Host "Snapshot written to $OutputPath.json"
     }
     'Html' {
-        # Flatten nested ManagementGroup/Subscription data into a single table for Html/Csv output
-        $flat_assigments = New-FlatRoleAssignmentList -ManagementGroupData $role_assigment_data_management_groups -SubscriptionData $role_assigment_data_subscriptions
-        $flat_assigments | ConvertTo-Html | Out-File -FilePath "$OutputPath.html" -Encoding utf8
+        ConvertTo-GroupedHtmlReport -Title 'Azure Role Assignment Snapshot' -ManagementGroupData $role_assigment_data_management_groups -SubscriptionData $role_assigment_data_subscriptions -ManagementGroupNames $report.ManagementGroupNames -SubscriptionNames $report.SubscriptionNames -GeneratedBy 'Export-AzRoleAssignment' | Out-File -FilePath "$OutputPath.html" -Encoding utf8
+        Write-Host "Snapshot written to $OutputPath.html"
     }
     'Csv' {
         $flat_assigments = New-FlatRoleAssignmentList -ManagementGroupData $role_assigment_data_management_groups -SubscriptionData $role_assigment_data_subscriptions
         $flat_assigments | Export-Csv -Path "$OutputPath.csv" -NoTypeInformation -Encoding utf8
+        Write-Host "Snapshot written to $OutputPath.csv"
     }
 }
 

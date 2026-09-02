@@ -13,7 +13,10 @@ function Get-AzRoleAssignmentReport {
         [switch]$SubscriptionOnly,
 
         # Only gather role assignments for Management Groups. Default gathers both Subscriptions and Management Groups.
-        [switch]$ManagementGroupOnly
+        [switch]$ManagementGroupOnly,
+
+        # Include role assignments inherited from a parent scope. Default only returns assignments defined directly at scope.
+        [switch]$IncludeInherited
     )
 
     $list_subscriptions = if ($ManagementGroupOnly) { @() } else { Get-AzSubscription | Where-Object { $_.State -ne "Disabled" } }
@@ -21,6 +24,8 @@ function Get-AzRoleAssignmentReport {
 
     $role_assigment_data_subscriptions = [ordered]@{}
     $role_assigment_data_management_groups = [ordered]@{}
+    $subscription_names = [ordered]@{}
+    $management_group_names = [ordered]@{}
 
     foreach ($sub in $list_subscriptions) {
 
@@ -38,6 +43,9 @@ function Get-AzRoleAssignmentReport {
                 if ($role.ObjectType -ne "Unknown") { continue }
                 if ($is_inherited) { continue }
             }
+            elseif ($is_inherited -and -not $IncludeInherited) {
+                continue
+            }
 
             $role_assigments += [PSCustomObject]@{
                 Scope = $role.Scope
@@ -53,6 +61,7 @@ function Get-AzRoleAssignmentReport {
         }
 
         $role_assigment_data_subscriptions[$sub.Id] = $role_assigments
+        $subscription_names[$sub.Id] = $sub.Name
 
     }
 
@@ -72,6 +81,9 @@ function Get-AzRoleAssignmentReport {
                 if ($role.ObjectType -ne "Unknown") { continue }
                 if ($is_inherited) { continue }
             }
+            elseif ($is_inherited -and -not $IncludeInherited) {
+                continue
+            }
 
             $role_assigments += [PSCustomObject]@{
                 Scope = $role.Scope
@@ -87,11 +99,14 @@ function Get-AzRoleAssignmentReport {
         }
 
         $role_assigment_data_management_groups[$mg.Id] = $role_assigments
+        $management_group_names[$mg.Id] = $mg.DisplayName
 
     }
 
     return [PSCustomObject]@{
-        Subscriptions    = $role_assigment_data_subscriptions
-        ManagementGroups = $role_assigment_data_management_groups
+        Subscriptions         = $role_assigment_data_subscriptions
+        ManagementGroups      = $role_assigment_data_management_groups
+        SubscriptionNames     = $subscription_names
+        ManagementGroupNames  = $management_group_names
     }
 }

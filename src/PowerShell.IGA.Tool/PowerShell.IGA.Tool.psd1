@@ -36,9 +36,9 @@
     FunctionsToExport = @(
         'Export-AzRoleAssignment',
         'Remove-AzRoleOrphaned',
-        'Test-AzRoleAssignment',
+        'Invoke-AzRoleAssignmentDiffReport',
         'Merge-AzRoleAssignment',
-        'Sync-AzRoleAssignment'
+        'Set-AzRoleAssignment'
     )
 
     # Cmdlets to export from this module

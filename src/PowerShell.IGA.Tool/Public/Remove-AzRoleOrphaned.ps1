@@ -17,7 +17,7 @@ function Remove-AzRoleOrphaned {
         [switch]$Remove,
 
         # Report format. 'Terminal' prints a table to the host instead of writing a file. Defaults to Json.
-        [ValidateSet('Terminal', 'Json', 'Html', 'Csv')]
+        [ValidateSet('Terminal', 'Json', 'Html', 'Csv', 'JUnit')]
         [string]$OutputFormat = 'Json',
 
         # Report file path without extension; the correct extension is appended based on -OutputFormat (ignored for 'Terminal').
@@ -43,21 +43,24 @@ switch ($OutputFormat) {
     }
     'Json' {
         $role_assigment_export | ConvertTo-Json -Depth 5 | Out-File -FilePath "$OutputPath.json" -Encoding utf8
+        Write-Host "Report written to $OutputPath.json"
     }
     'Html' {
-        New-FlatRoleAssignmentList -ManagementGroupData $role_assigment_data_management_groups -SubscriptionData $role_assigment_data_subscriptions | ConvertTo-Html | Out-File -FilePath "$OutputPath.html" -Encoding utf8
+        ConvertTo-GroupedHtmlReport -Title 'Azure Orphaned Role Assignment Report' -ManagementGroupData $role_assigment_data_management_groups -SubscriptionData $role_assigment_data_subscriptions -ManagementGroupNames $report.ManagementGroupNames -SubscriptionNames $report.SubscriptionNames -GeneratedBy 'Remove-AzRoleOrphaned' | Out-File -FilePath "$OutputPath.html" -Encoding utf8
+        Write-Host "Report written to $OutputPath.html"
     }
     'Csv' {
         New-FlatRoleAssignmentList -ManagementGroupData $role_assigment_data_management_groups -SubscriptionData $role_assigment_data_subscriptions | Export-Csv -Path "$OutputPath.csv" -NoTypeInformation -Encoding utf8
+        Write-Host "Report written to $OutputPath.csv"
+    }
+    'JUnit' {
+        ConvertTo-RoleAssignmentJUnitXml -ManagementGroupData $role_assigment_data_management_groups -SubscriptionData $role_assigment_data_subscriptions | Out-File -FilePath "$OutputPath.xml" -Encoding utf8
+        Write-Host "Report written to $OutputPath.xml"
     }
 }
 
 if (-not $Remove) {
-    if ($OutputFormat -eq 'Terminal') {
-        Write-Host "Report only mode. No role assignments were removed."
-    } else {
-        Write-Host "Report only mode. No role assignments were removed. Report written to $OutputPath.$($OutputFormat.ToLower())"
-    }
+    Write-Host "Report only mode. No role assignments were removed."
     return $role_assigment_export
 }
 

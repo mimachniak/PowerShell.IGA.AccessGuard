@@ -11,7 +11,7 @@
 
 #Requires –Modules Az
 
-function Diff-AzRoleAssignment {
+function Invoke-AzRoleAssignmentDiffReport {
     <#
     .SYNOPSIS
         Compares the current Azure role assignments against a previously exported reference file and reports drift.
@@ -26,13 +26,10 @@ function Diff-AzRoleAssignment {
 
         # Output format for the drift report. 'Terminal' prints a table to the host instead of writing a file. Defaults to Json.
         [ValidateSet('Terminal', 'Json', 'Html', 'Csv', 'JUnit')]
-        [string]$OutputFormat = 'Json',
-
-        # Include role assignments inherited from a parent scope. Default only compares assignments defined directly at scope.
-        [switch]$IncludeInherited
+        [string]$OutputFormat = 'Json'
     )
 
-    $report = Get-AzRoleAssignmentReport -IncludeInherited:$IncludeInherited
+    $report = Get-AzRoleAssignmentReport
     $role_assigment_data_subscriptions = $report.Subscriptions
     $role_assigment_data_management_groups = $report.ManagementGroups
 
