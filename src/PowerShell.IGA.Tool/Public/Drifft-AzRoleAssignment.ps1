@@ -25,7 +25,7 @@ function Drifft-AzRoleAssignment {
         [string]$DriftOutputFile = "D:\Git\drift",
 
         # Output format for the drift report. 'Terminal' prints a table to the host instead of writing a file. Defaults to Json.
-        [ValidateSet('Terminal', 'Json', 'Html', 'Csv')]
+        [ValidateSet('Terminal', 'Json', 'Html', 'Csv', 'JUnit')]
         [string]$OutputFormat = 'Json'
     )
 
@@ -50,6 +50,8 @@ function Drifft-AzRoleAssignment {
         Subscription = [ordered]@{}
     }
 
+    $scope_test_results = @()
+
     foreach ($section in 'ManagementGroup', 'Subscription') {
 
         $current_section = $role_assigment_export.$section
@@ -72,6 +74,12 @@ function Drifft-AzRoleAssignment {
             if ($reference_ids -contains $id) { $reference_assignments = @($reference_section.$id) }
 
             $id_diff = Compare-AzRoleAssignmentSet -ReferenceAssignments $reference_assignments -CurrentAssignments $current_assignments
+
+            $scope_test_results += [PSCustomObject]@{
+                Section = $section
+                ScopeId = $id
+                Diff    = $id_diff
+            }
 
             if ($id_diff.Count -gt 0) {
                 $drift_result[$section][$id] = $id_diff
@@ -97,13 +105,17 @@ function Drifft-AzRoleAssignment {
         'Csv' {
             New-FlatDriftResultList -DriftResult $drift_result | Export-Csv -Path "$DriftOutputFile.csv" -NoTypeInformation -Encoding utf8
         }
+        'JUnit' {
+            ConvertTo-DriftJUnitXml -ScopeResults $scope_test_results | Out-File -FilePath "$DriftOutputFile.xml" -Encoding utf8
+        }
     }
 
     $total_changes = ($drift_result.ManagementGroup.Values + $drift_result.Subscription.Values | ForEach-Object { $_.Count } | Measure-Object -Sum).Sum
     if ($OutputFormat -eq 'Terminal') {
         Write-Host "Drift detection complete. $total_changes change(s) found."
     } else {
-        Write-Host "Drift detection complete. $total_changes change(s) found. Details written to $DriftOutputFile.$($OutputFormat.ToLower())"
+        $extension = if ($OutputFormat -eq 'JUnit') { 'xml' } else { $OutputFormat.ToLower() }
+        Write-Host "Drift detection complete. $total_changes change(s) found. Details written to $DriftOutputFile.$extension"
     }
 
     return $drift_output | ConvertTo-Json -Depth 6
