@@ -33,16 +33,25 @@
     PowerShellVersion = '5.1'
 
     # Functions to export from this module
-    FunctionsToExport = @('*')
+    FunctionsToExport = @(
+        'Snapshot-AzRoleAssignment',
+        'Clean-AzRoleOrphaned',
+        'Drifft-AzRoleAssignment',
+        'Marge-AzRoleAssignment',
+        'Sync-AzRoleAssignment'
+    )
 
     # Cmdlets to export from this module
-    CmdletsToExport = @('New-AzResourceNameGenerator','Get-AzResourcesListGenerator')
+    CmdletsToExport = @()
 
     # Variables to export from this module
     VariablesToExport = @()
 
     # Aliases to export from this module
     AliasesToExport = @()
+
+    # Public and private script files loaded by the module
+    FileList = @()
 
     PrivateData      = @{
         PSData = @{

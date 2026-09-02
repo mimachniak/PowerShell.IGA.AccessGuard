@@ -1,5 +1,8 @@
 function Compare-AzRoleAssignmentSet {
-    # Compares two role assignment collections and returns Added/Removed entries keyed by Scope+ObjectId+RoleDefinitionName
+    <#
+    .SYNOPSIS
+        Compares two role assignment collections and returns Added/Removed entries keyed by Scope+ObjectId+RoleDefinitionName.
+    #>
     [CmdletBinding()]
     param(
         [AllowEmptyCollection()]

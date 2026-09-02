@@ -9,100 +9,29 @@
 # change of functions
 # Add Private function to get role assignments for MG and Subscription
 
-# Loads 'MyFunctions.ps1' from the same folder as the current script
-. "D:\Git\PowerShell.IGA.Tool\src\PowerShell.IGA.Tool\Private\Compare-AzRoleAssignmentSet.ps1"
-
 #Requires –Modules Az
 
-    # Previously exported role assignment file (e.g. produced by Export-AzRoleAssignmentPermissions) to compare against
-    [string]$ReferenceFile = "D:\Git\output.json"
+function Drifft-AzRoleAssignment {
+    <#
+    .SYNOPSIS
+        Compares the current Azure role assignments against a previously exported reference file and reports drift.
+    #>
+    [CmdletBinding()]
+    param(
+        # Previously exported role assignment file (e.g. produced by Export-AzRoleAssignmentPermissions) to compare against
+        [string]$ReferenceFile = "D:\Git\output.json",
 
-    # Where the detected differences are written
-    [string]$DriftOutputFile = "D:\Git\drift.json"
+        # Where the detected differences are written, without extension; the correct extension is appended based on -OutputFormat
+        [string]$DriftOutputFile = "D:\Git\drift",
 
-    $list_subscriptions = Get-AzSubscription | Where-Object {$_.State -ne "Disabled"}
-    $list_managementgroups = Get-AzManagementGroup
+        # Output format for the drift report. 'Terminal' prints a table to the host instead of writing a file. Defaults to Json.
+        [ValidateSet('Terminal', 'Json', 'Html', 'Csv')]
+        [string]$OutputFormat = 'Json'
+    )
 
-    $role_assigment_data_subscriptions = [ordered]@{}
-    $role_assigment_data_management_groups = [ordered]@{}
-
-    foreach ($sub in $list_subscriptions) {
-
-        Write-Host "Exporting Role Assignments from Subscription: $($sub.Name) ($($sub.Id))"
-
-        $list_role = Get-AzRoleAssignment -Scope "/subscriptions/$($sub.Id)" -AtScope
-
-        $role_assigments = @()
-
-        foreach ($role in $list_role) {
-
-            $role_assigments += [PSCustomObject]@{
-                Scope = $role.Scope
-                Inherited = if ($role.Scope -ne "/subscriptions/$($sub.Id)") {
-                    $true
-                } else {
-                    $false
-                }
-                InheritedFrom = if ($role.Scope -ne "/subscriptions/$($sub.Id)") {
-                    $role.Scope
-                } else {
-                    $null
-                }
-                DisplayName = $role.DisplayName
-                SignInName = $role.SignInName
-                ObjectId = $role.ObjectId
-                ObjectType = if ($role.ObjectType -eq "Unknown") {
-                    "Orphaned"
-                } else {
-                    $role.ObjectType
-                }
-                RoleDefinitionName = $role.RoleDefinitionName
-            }
-
-        }
-
-        $role_assigment_data_subscriptions[$sub.Id] = $role_assigments
-
-    }
-
-    foreach ($mg in $list_managementgroups) {
-
-        write-Host "Exporting Role Assignments from Management Group: $($mg.DisplayName) ($($mg.Id))"
-
-        $list_role = Get-AzRoleAssignment -Scope "$($mg.Id)" -AtScope
-
-        $role_assigments = @()
-
-        foreach ($role in $list_role) {
-
-            $role_assigments += [PSCustomObject]@{
-                Scope = $role.Scope
-                Inherited = if ($role.Scope -ne "$($mg.Id)") {
-                    $true
-                } else {
-                    $false
-                }
-                InheritedFrom = if ($role.Scope -ne "$($mg.Id)") {
-                    $role.Scope
-                } else {
-                    $null
-                }
-                DisplayName = $role.DisplayName
-                SignInName = $role.SignInName
-                ObjectId = $role.ObjectId
-                ObjectType = if ($role.ObjectType -eq "Unknown") {
-                    "Orphaned"
-                } else {
-                    $role.ObjectType
-                }
-                RoleDefinitionName = $role.RoleDefinitionName
-            }
-
-        }
-
-        $role_assigment_data_management_groups[$mg.Id] = $role_assigments
-
-    }
+    $report = Get-AzRoleAssignmentReport
+    $role_assigment_data_subscriptions = $report.Subscriptions
+    $role_assigment_data_management_groups = $report.ManagementGroups
 
     $role_assigment_export = [PSCustomObject]@{
         ManagementGroup = [PSCustomObject]$role_assigment_data_management_groups
@@ -155,10 +84,29 @@
         Subscription = [PSCustomObject]$drift_result.Subscription
     }
 
-    $drift_output | ConvertTo-Json -Depth 6 | Out-File -FilePath $DriftOutputFile -Encoding utf8
+    switch ($OutputFormat) {
+        'Terminal' {
+            New-FlatDriftResultList -DriftResult $drift_result | Format-Table -AutoSize
+        }
+        'Json' {
+            $drift_output | ConvertTo-Json -Depth 6 | Out-File -FilePath "$DriftOutputFile.json" -Encoding utf8
+        }
+        'Html' {
+            New-FlatDriftResultList -DriftResult $drift_result | ConvertTo-Html | Out-File -FilePath "$DriftOutputFile.html" -Encoding utf8
+        }
+        'Csv' {
+            New-FlatDriftResultList -DriftResult $drift_result | Export-Csv -Path "$DriftOutputFile.csv" -NoTypeInformation -Encoding utf8
+        }
+    }
 
     $total_changes = ($drift_result.ManagementGroup.Values + $drift_result.Subscription.Values | ForEach-Object { $_.Count } | Measure-Object -Sum).Sum
-    Write-Host "Drift detection complete. $total_changes change(s) found. Details written to $DriftOutputFile"
+    if ($OutputFormat -eq 'Terminal') {
+        Write-Host "Drift detection complete. $total_changes change(s) found."
+    } else {
+        Write-Host "Drift detection complete. $total_changes change(s) found. Details written to $DriftOutputFile.$($OutputFormat.ToLower())"
+    }
 
     return $drift_output | ConvertTo-Json -Depth 6
+
+}
 

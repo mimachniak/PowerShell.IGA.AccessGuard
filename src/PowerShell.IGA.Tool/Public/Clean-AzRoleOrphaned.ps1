@@ -7,97 +7,26 @@
 #Requires –Modules Az
 
 function Clean-AzRoleOrphaned {
+    <#
+    .SYNOPSIS
+        Reports, and optionally removes, orphaned Azure role assignments across Subscriptions and Management Groups.
+    #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     param(
         # Actually remove the orphaned role assignments from Azure. Default behavior only reports them.
         [switch]$Remove,
 
-        [string]$ReportPath = ".\output_unknow.json"
+        # Report format. 'Terminal' prints a table to the host instead of writing a file. Defaults to Json.
+        [ValidateSet('Terminal', 'Json', 'Html', 'Csv')]
+        [string]$OutputFormat = 'Json',
+
+        # Report file path without extension; the correct extension is appended based on -OutputFormat (ignored for 'Terminal').
+        [string]$OutputPath = ".\output_unknow"
     )
 
-$list_subscriptions = Get-AzSubscription | Where-Object {$_.State -ne "Disabled"}
-$list_managementgroups = Get-AzManagementGroup
-
-
-
-$role_assigment_export = [PSCustomObject]@{
-    ManagementGroup = $null
-    Subscription = $null
-}
-
-$role_assigment_data_subscriptions = [ordered]@{}
-$role_assigment_data_management_groups = [ordered]@{}
-
-foreach ($sub in $list_subscriptions) {
-
-    Write-Host "Exporting Role Assignments from Subscription: $($sub.Name) ($($sub.Id))"
-    
-    $list_role = Get-AzRoleAssignment -Scope "/subscriptions/$($sub.Id)" -AtScope
-
-    $role_assigments = @()
-
-    foreach ($role in $list_role) {
-
-        if ($role.ObjectType -ne "Unknown") {
-            continue
-        }
-
-        if ($role.Scope -ne "/subscriptions/$($sub.Id)") {
-            continue
-        }
-
-        $role_assigments += [PSCustomObject]@{
-            Scope = $role.Scope
-            Inherited = $false
-            InheritedFrom = $null
-            DisplayName = $role.DisplayName
-            SignInName = $role.SignInName
-            ObjectId = $role.ObjectId
-            ObjectType = "Orphaned"
-            RoleDefinitionName = $role.RoleDefinitionName
-        }
-
-    }
-
-    $role_assigment_data_subscriptions[$sub.Id] = $role_assigments
-
-}
-
-
-foreach ($mg in $list_managementgroups) {
-
-    write-Host "Exporting Role Assignments from Management Group: $($mg.DisplayName) ($($mg.Id))"
-
-    $list_role = Get-AzRoleAssignment -Scope "$($mg.Id)" -AtScope
-
-    $role_assigments = @()
-
-    foreach ($role in $list_role) {
-
-        if ($role.ObjectType -ne "Unknown") {
-            continue
-        }
-
-        if ($role.Scope -ne "$($mg.Id)") {
-            continue
-        }
-
-        $role_assigments += [PSCustomObject]@{
-            Scope = $role.Scope
-            Inherited = $false
-            InheritedFrom = $null
-            DisplayName = $role.DisplayName
-            SignInName = $role.SignInName
-            ObjectId = $role.ObjectId
-            ObjectType = "Orphaned"
-            RoleDefinitionName = $role.RoleDefinitionName
-        }
-
-    }
-
-    $role_assigment_data_management_groups[$mg.Id] = $role_assigments
-
-}
+$report = Get-AzRoleAssignmentReport -OrphanedOnly
+$role_assigment_data_subscriptions = $report.Subscriptions
+$role_assigment_data_management_groups = $report.ManagementGroups
 
 # Join both results into a single object, nested by ManagementGroup/Subscription ID
 
@@ -108,10 +37,27 @@ $role_assigment_export = [PSCustomObject]@{
     Subscription = [PSCustomObject]$role_assigment_data_subscriptions
 }
 
-$role_assigment_export | ConvertTo-Json -Depth 5 | Out-File -FilePath $ReportPath -Encoding utf8
+switch ($OutputFormat) {
+    'Terminal' {
+        New-FlatRoleAssignmentList -ManagementGroupData $role_assigment_data_management_groups -SubscriptionData $role_assigment_data_subscriptions | Format-Table -AutoSize
+    }
+    'Json' {
+        $role_assigment_export | ConvertTo-Json -Depth 5 | Out-File -FilePath "$OutputPath.json" -Encoding utf8
+    }
+    'Html' {
+        New-FlatRoleAssignmentList -ManagementGroupData $role_assigment_data_management_groups -SubscriptionData $role_assigment_data_subscriptions | ConvertTo-Html | Out-File -FilePath "$OutputPath.html" -Encoding utf8
+    }
+    'Csv' {
+        New-FlatRoleAssignmentList -ManagementGroupData $role_assigment_data_management_groups -SubscriptionData $role_assigment_data_subscriptions | Export-Csv -Path "$OutputPath.csv" -NoTypeInformation -Encoding utf8
+    }
+}
 
 if (-not $Remove) {
-    Write-Host "Report only mode. No role assignments were removed. Report written to $ReportPath"
+    if ($OutputFormat -eq 'Terminal') {
+        Write-Host "Report only mode. No role assignments were removed."
+    } else {
+        Write-Host "Report only mode. No role assignments were removed. Report written to $OutputPath.$($OutputFormat.ToLower())"
+    }
     return $role_assigment_export
 }
 

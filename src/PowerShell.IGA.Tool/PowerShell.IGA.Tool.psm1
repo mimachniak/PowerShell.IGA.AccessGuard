@@ -16,6 +16,15 @@ foreach ($Function in @($PublicFunctions)) {
     }
 }
 
+foreach ($Function in @($PrivateFunctions)) {
+    try {
+        . $Function.FullName
+    }
+    catch {
+        Write-Error "Failed to import function from $($Function.FullName): $_"
+    }
+}
+
 # Export only public functions
 if ($PublicFunctions) {
     Export-ModuleMember -Function $($PublicFunctions.BaseName)
