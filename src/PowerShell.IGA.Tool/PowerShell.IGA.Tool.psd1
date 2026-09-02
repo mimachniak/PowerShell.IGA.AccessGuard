@@ -34,10 +34,10 @@
 
     # Functions to export from this module
     FunctionsToExport = @(
-        'Snapshot-AzRoleAssignment',
-        'Clean-AzRoleOrphaned',
-        'Drifft-AzRoleAssignment',
-        'Marge-AzRoleAssignment',
+        'Export-AzRoleAssignment',
+        'Remove-AzRoleOrphaned',
+        'Test-AzRoleAssignment',
+        'Merge-AzRoleAssignment',
         'Sync-AzRoleAssignment'
     )
 
