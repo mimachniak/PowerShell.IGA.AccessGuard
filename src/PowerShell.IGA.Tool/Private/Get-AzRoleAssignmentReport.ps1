@@ -38,9 +38,10 @@ function Get-AzRoleAssignmentReport {
         foreach ($role in $list_role) {
 
             $is_inherited = $role.Scope -ne "/subscriptions/$($sub.Id)"
+            $is_orphaned = ($role.ObjectType -eq "Unknown") -or ([string]::IsNullOrEmpty($role.DisplayName) -and [string]::IsNullOrEmpty($role.SignInName))
 
             if ($OrphanedOnly) {
-                if ($role.ObjectType -ne "Unknown") { continue }
+                if (-not $is_orphaned) { continue }
                 if ($is_inherited) { continue }
             }
             elseif ($is_inherited -and -not $IncludeInherited) {
@@ -51,10 +52,10 @@ function Get-AzRoleAssignmentReport {
                 Scope = $role.Scope
                 Inherited = if ($OrphanedOnly) { $false } else { $is_inherited }
                 InheritedFrom = if ($OrphanedOnly) { $null } elseif ($is_inherited) { $role.Scope } else { $null }
-                DisplayName = $role.DisplayName
-                SignInName = $role.SignInName
+                DisplayName = if ($is_orphaned) { "Orphaned" } else { $role.DisplayName }
+                SignInName = if ($is_orphaned) { "Orphaned" } else { $role.SignInName }
                 ObjectId = $role.ObjectId
-                ObjectType = if ($role.ObjectType -eq "Unknown") { "Orphaned" } else { $role.ObjectType }
+                ObjectType = $role.ObjectType
                 RoleDefinitionName = $role.RoleDefinitionName
             }
 
@@ -76,9 +77,10 @@ function Get-AzRoleAssignmentReport {
         foreach ($role in $list_role) {
 
             $is_inherited = $role.Scope -ne "$($mg.Id)"
+            $is_orphaned = ($role.ObjectType -eq "Unknown") -or ([string]::IsNullOrEmpty($role.DisplayName) -and [string]::IsNullOrEmpty($role.SignInName))
 
             if ($OrphanedOnly) {
-                if ($role.ObjectType -ne "Unknown") { continue }
+                if (-not $is_orphaned) { continue }
                 if ($is_inherited) { continue }
             }
             elseif ($is_inherited -and -not $IncludeInherited) {
@@ -89,10 +91,10 @@ function Get-AzRoleAssignmentReport {
                 Scope = $role.Scope
                 Inherited = if ($OrphanedOnly) { $false } else { $is_inherited }
                 InheritedFrom = if ($OrphanedOnly) { $null } elseif ($is_inherited) { $role.Scope } else { $null }
-                DisplayName = $role.DisplayName
-                SignInName = $role.SignInName
+                DisplayName = if ($is_orphaned) { "Orphaned" } else { $role.DisplayName }
+                SignInName = if ($is_orphaned) { "Orphaned" } else { $role.SignInName }
                 ObjectId = $role.ObjectId
-                ObjectType = if ($role.ObjectType -eq "Unknown") { "Orphaned" } else { $role.ObjectType }
+                ObjectType = $role.ObjectType
                 RoleDefinitionName = $role.RoleDefinitionName
             }
 
