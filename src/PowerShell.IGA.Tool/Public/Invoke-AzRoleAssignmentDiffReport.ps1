@@ -19,10 +19,10 @@ function Invoke-AzRoleAssignmentDiffReport {
     [CmdletBinding()]
     param(
         # Previously exported role assignment file (e.g. produced by Export-AzRoleAssignment) to compare against
-        [string]$ReferenceFile = "D:\Git\output.json",
+        [string]$ReferenceFile,
 
         # Where the detected differences are written, without extension; the correct extension is appended based on -OutputFormat
-        [string]$DriftOutputFile = "D:\Git\drift",
+        [string]$DriftOutputFile,
 
         # Output format for the drift report. 'Terminal' prints a table to the host instead of writing a file. Defaults to Json.
         [ValidateSet('Terminal', 'Json', 'Html', 'Csv', 'JUnit')]
