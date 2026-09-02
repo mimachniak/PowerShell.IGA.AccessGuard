@@ -6,7 +6,7 @@
 
 #Requires –Modules Az
 
-function Clean-AzRoleOrphaned {
+function Remove-AzRoleOrphaned {
     <#
     .SYNOPSIS
         Reports, and optionally removes, orphaned Azure role assignments across Subscriptions and Management Groups.

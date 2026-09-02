@@ -4,7 +4,7 @@
 # change of functions
 # Add Private function to get role assignments for MG and Subscription
 
-function Snapshot-AzRoleAssignment {
+function Export-AzRoleAssignment {
     <#
     .SYNOPSIS
         Exports a snapshot of Azure role assignments for all Subscriptions and Management Groups.

@@ -11,14 +11,14 @@
 
 #Requires –Modules Az
 
-function Drifft-AzRoleAssignment {
+function Test-AzRoleAssignment {
     <#
     .SYNOPSIS
         Compares the current Azure role assignments against a previously exported reference file and reports drift.
     #>
     [CmdletBinding()]
     param(
-        # Previously exported role assignment file (e.g. produced by Export-AzRoleAssignmentPermissions) to compare against
+        # Previously exported role assignment file (e.g. produced by Export-AzRoleAssignment) to compare against
         [string]$ReferenceFile = "D:\Git\output.json",
 
         # Where the detected differences are written, without extension; the correct extension is appended based on -OutputFormat
