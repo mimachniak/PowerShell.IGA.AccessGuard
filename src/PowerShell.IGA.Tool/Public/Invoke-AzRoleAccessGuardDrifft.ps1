@@ -11,7 +11,7 @@
 
 #Requires –Modules Az
 
-function Invoke-AzRoleAssignmentDiffReport {
+function Invoke-AzRoleAccessGuardDrifft {
     <#
     .SYNOPSIS
         Compares the current Azure role assignments against a previously exported reference file and reports drift.
@@ -21,8 +21,8 @@ function Invoke-AzRoleAssignmentDiffReport {
         # Previously exported role assignment file (e.g. produced by Export-AzRoleAssignment) to compare against
         [string]$ReferenceFile,
 
-        # Where the detected differences are written, without extension; the correct extension is appended based on -OutputFormat
-        [string]$DriftOutputFile,
+        # Where the detected differences are written, without extension; the correct extension is appended based on -OutputFormat.
+        [string]$OutputPath = (Join-Path (Split-Path -Parent $PSScriptRoot) 'output_diff'),
 
         # Output format for the drift report. 'Terminal' prints a table to the host instead of writing a file. Defaults to Json.
         [ValidateSet('Terminal', 'Json', 'Html', 'Csv', 'JUnit')]
@@ -97,48 +97,27 @@ function Invoke-AzRoleAssignmentDiffReport {
             New-FlatDriftResultList -DriftResult $drift_result | Format-Table -AutoSize
         }
         'Json' {
-            $drift_output | ConvertTo-Json -Depth 6 | Out-File -FilePath "$DriftOutputFile.json" -Encoding utf8
-            Write-Host "Drift report written to $DriftOutputFile.json"
+                $drift_output | ConvertTo-Json -Depth 6 | Out-File -FilePath "$OutputPath.json" -Encoding utf8
+                Write-Host "Drift report written to $OutputPath.json"
         }
         'Html' {
-            # Flatten Status/Assignment diff entries per scope so each scope renders as its own table
-            $flat_mg_by_scope = [ordered]@{}
-            foreach ($id in $drift_result.ManagementGroup.Keys) {
-                $flat_mg_by_scope[$id] = @($drift_result.ManagementGroup[$id] | ForEach-Object {
-                    [PSCustomObject]@{
-                        Status = $_.Status; Scope = $_.Assignment.Scope; DisplayName = $_.Assignment.DisplayName
-                        SignInName = $_.Assignment.SignInName; ObjectId = $_.Assignment.ObjectId
-                        ObjectType = $_.Assignment.ObjectType; RoleDefinitionName = $_.Assignment.RoleDefinitionName
-                    }
-                })
-            }
-            $flat_sub_by_scope = [ordered]@{}
-            foreach ($id in $drift_result.Subscription.Keys) {
-                $flat_sub_by_scope[$id] = @($drift_result.Subscription[$id] | ForEach-Object {
-                    [PSCustomObject]@{
-                        Status = $_.Status; Scope = $_.Assignment.Scope; DisplayName = $_.Assignment.DisplayName
-                        SignInName = $_.Assignment.SignInName; ObjectId = $_.Assignment.ObjectId
-                        ObjectType = $_.Assignment.ObjectType; RoleDefinitionName = $_.Assignment.RoleDefinitionName
-                    }
-                })
-            }
-            ConvertTo-GroupedHtmlReport -Title 'Azure Role Assignment Drift Report' -ManagementGroupData $flat_mg_by_scope -SubscriptionData $flat_sub_by_scope -ManagementGroupNames $report.ManagementGroupNames -SubscriptionNames $report.SubscriptionNames -GeneratedBy 'Test-AzRoleAssignment' | Out-File -FilePath "$DriftOutputFile.html" -Encoding utf8
-            Write-Host "Drift report written to $DriftOutputFile.html"
+            ConvertTo-DriftGroupedHtmlReport -Title 'Azure Role Assignment Drift Report' -DriftResult $drift_result -ManagementGroupNames $report.ManagementGroupNames -SubscriptionNames $report.SubscriptionNames -GeneratedBy 'Test-AzRoleAssignment' | Out-File -FilePath "$OutputPath.html" -Encoding utf8
+            Write-Host "Drift report written to $OutputPath.html"
         }
         'Csv' {
-            New-FlatDriftResultList -DriftResult $drift_result | Export-Csv -Path "$DriftOutputFile.csv" -NoTypeInformation -Encoding utf8
-            Write-Host "Drift report written to $DriftOutputFile.csv"
+            New-FlatDriftResultList -DriftResult $drift_result | Export-Csv -Path "$OutputPath.csv" -NoTypeInformation -Encoding utf8
+            Write-Host "Drift report written to $OutputPath.csv"
         }
         'JUnit' {
-            ConvertTo-DriftJUnitXml -ScopeResults $scope_test_results | Out-File -FilePath "$DriftOutputFile.xml" -Encoding utf8
-            Write-Host "Drift report written to $DriftOutputFile.xml"
+            ConvertTo-DriftJUnitXml -ScopeResults $scope_test_results | Out-File -FilePath "$OutputPath.xml" -Encoding utf8
+            Write-Host "Drift report written to $OutputPath.xml"
         }
     }
 
     $total_changes = ($drift_result.ManagementGroup.Values + $drift_result.Subscription.Values | ForEach-Object { $_.Count } | Measure-Object -Sum).Sum
     Write-Host "Drift detection complete. $total_changes change(s) found."
 
-    return $drift_output | ConvertTo-Json -Depth 6
+    return $drift_output
 
 }
 

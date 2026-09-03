@@ -11,7 +11,7 @@
 
 #Requires –Modules Az
 
-function Diff-AzRoleAssignment {
+function Test-AzRoleAccessGuard {
     <#
     .SYNOPSIS
         Compares the current Azure role assignments against a previously exported reference file and reports drift.

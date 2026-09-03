@@ -6,7 +6,7 @@
 
 #Requires –Modules Az
 
-function Remove-AzRoleOrphaned {
+function Clear-AzRoleOrphaned {
     <#
     .SYNOPSIS
         Reports, and optionally removes, orphaned Azure role assignments across Subscriptions and Management Groups.
@@ -17,7 +17,7 @@ function Remove-AzRoleOrphaned {
         [switch]$Remove,
 
         # Report format. 'Terminal' prints a table to the host instead of writing a file. Defaults to Json.
-        [ValidateSet('Terminal', 'Json', 'Html', 'Csv', 'JUnit')]
+        [ValidateSet('Json', 'Html', 'Csv', 'JUnit')]
         [string]$OutputFormat = 'Json',
 
         # Report file path without extension; the correct extension is appended based on -OutputFormat (ignored for 'Terminal').
@@ -38,9 +38,6 @@ $role_assigment_export = [PSCustomObject]@{
 }
 
 switch ($OutputFormat) {
-    'Terminal' {
-        New-FlatRoleAssignmentList -ManagementGroupData $role_assigment_data_management_groups -SubscriptionData $role_assigment_data_subscriptions | Format-Table -AutoSize
-    }
     'Json' {
         $role_assigment_export | ConvertTo-Json -Depth 5 | Out-File -FilePath "$OutputPath.json" -Encoding utf8
         Write-Host "Report written to $OutputPath.json"
@@ -78,7 +75,7 @@ foreach ($role_assigment in $all_orphaned) {
 
 }
 
-return $role_assigment_export
+return $role_assigment_export | ConvertTo-Json -Depth 6
 
 }
 

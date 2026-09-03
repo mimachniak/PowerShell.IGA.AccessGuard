@@ -4,8 +4,8 @@
 
     # required modules
     RequiredModules = @(
-        @{ ModuleName = 'Az.Resources'; MinimumVersion = '15.2' }
-        @{ ModuleName = 'Az.Accounts'; MinimumVersion = '15.2' }
+        @{ ModuleName = 'Az.Resources'; ModuleVersion = '15.2' }
+        @{ ModuleName = 'Az.Accounts'; ModuleVersion = '15.2' }
     )
 
     # Version number of this module.
@@ -34,11 +34,11 @@
 
     # Functions to export from this module
     FunctionsToExport = @(
-        'Export-AzRoleAssignment',
-        'Remove-AzRoleOrphaned',
-        'Invoke-AzRoleAssignmentDiffReport',
+        'Clear-AzRoleOrphaned',
+        'Export-AzRoleAccessGuard',
+        'Invoke-AzRoleAccessGuardDrifft',
         'Merge-AzRoleAssignment',
-        'Set-AzRoleAssignment'
+        'Update-AzRoleAccessGuard'
     )
 
     # Cmdlets to export from this module
