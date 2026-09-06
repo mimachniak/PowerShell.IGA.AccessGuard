@@ -37,7 +37,6 @@
         'Clear-AzRoleOrphaned',
         'Export-AzRoleAccessGuard',
         'Invoke-AzRoleAccessGuardDrifft',
-        'Merge-AzRoleAssignment',
         'Update-AzRoleAccessGuard'
     )
 
