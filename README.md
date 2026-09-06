@@ -142,6 +142,25 @@ Clear-AzRoleOrphaned -Remove
 
 ## 🔄 Governance Workflow Example
 
+```mermaid
+flowchart TD
+    subgraph Step1["1. Export Baseline"]
+        A[Live Azure Environment] -->|Export-AzRoleAccessGuard| B[(baseline.json)]
+    end
+
+    subgraph Step2["2. Detect Drift"]
+        B -->|Reference Baseline| C[Invoke-AzRoleAccessGuardDrifft]
+        A -->|Current Live State| C
+        C -->|Detect Differences| D[(output_diff.json)]
+    end
+
+    subgraph Step3["3. Reconcile to Baseline"]
+        D -->|Dry Run Preview| E[Update-AzRoleAccessGuard -WhatIf]
+        D -->|Enforce Compliance| F[Update-AzRoleAccessGuard -Force]
+        F -->|Remediate Access Drift| A
+    end
+```
+
 1. **Export Baseline**:
    ```powershell
    Export-AzRoleAccessGuard -OutputFormat Json -OutputPath "./baseline"
