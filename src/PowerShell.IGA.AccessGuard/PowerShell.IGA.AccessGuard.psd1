@@ -1,6 +1,6 @@
 @{
     # Script module or binary module file associated with this manifest.
-    RootModule = 'PowerShell.IGA.Tool.psm1'
+    RootModule = 'PowerShell.IGA.AccessGuard.psm1'
 
     # required modules
     RequiredModules = @(
@@ -27,7 +27,7 @@
     Copyright = '(c) Michal Machniak. All rights reserved.'
 
     # Description of the functionality provided by this module
-    Description = 'PowerShell module generates Azure resource names based on a predefined naming convention schema and resource-specific rules.It ensures that the generated names comply with Azure naming restrictions and best practices'
+    Description = 'PowerShell module for exporting, monitoring, and reconciling Azure RBAC role assignments against a desired access baseline.'
 
     # Minimum version of the PowerShell engine required by this module
     PowerShellVersion = '5.1'
@@ -62,7 +62,7 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = '
-            v.1.0.0 - Initial release of PowerShell.IGA.Tool module.
+            v.1.0.0 - Initial release of PowerShell.IGA.AccessGuard module.
             '
 
             # Prerelease string of this module

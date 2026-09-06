@@ -14,7 +14,7 @@ function ConvertTo-DriftGroupedHtmlReport {
         [System.Collections.IDictionary]$ManagementGroupNames = @{}, 
         [System.Collections.IDictionary]$SubscriptionNames = @{},
 
-        [string]$GeneratedBy = 'PowerShell.IGA.Tool'
+        [string]$GeneratedBy = 'PowerShell.IGA.AccessGuard'
     )
 
     $generated_on = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'

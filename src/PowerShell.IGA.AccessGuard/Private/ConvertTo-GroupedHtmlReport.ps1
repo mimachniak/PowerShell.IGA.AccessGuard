@@ -24,7 +24,7 @@ function ConvertTo-GroupedHtmlReport {
         [System.Collections.IDictionary]$SubscriptionNames = @{},
 
         # Name shown in the report subtitle to identify which tool/function generated it.
-        [string]$GeneratedBy = 'PowerShell.IGA.Tool'
+        [string]$GeneratedBy = 'PowerShell.IGA.AccessGuard'
     )
 
     $generated_on = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'

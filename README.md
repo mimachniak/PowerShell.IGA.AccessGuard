@@ -1,4 +1,4 @@
-PowerShell.IGA.Tool
+PowerShell.IGA.AccessGuard
 An Identity Governance and Administration (IGA) solution for managing Azure Role-Based Access Control (RBAC) role assignments.
 
 The tool enables security and cloud engineering teams to maintain strict access compliance across Azure scopes (Subscriptions, Resource Groups, and Resources) through declarative configuration management.

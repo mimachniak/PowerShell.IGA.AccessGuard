@@ -1,4 +1,4 @@
-# PowerShell.IGA.Tool.psm1
+# PowerShell.IGA.AccessGuard.psm1
 # PowerShell module for generating standardized Azure resource names
 # Author: Michal Machniak
 # Version: 1.0.0
