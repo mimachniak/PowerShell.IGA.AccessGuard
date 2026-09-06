@@ -18,6 +18,7 @@ function New-FlatDriftResultList {
                     Section            = $section
                     ScopeId            = $id
                     Status             = $entry.Status
+                    SuggestedAction    = $entry.SuggestedAction
                     Scope              = $entry.Assignment.Scope
                     DisplayName        = $entry.Assignment.DisplayName
                     SignInName         = $entry.Assignment.SignInName

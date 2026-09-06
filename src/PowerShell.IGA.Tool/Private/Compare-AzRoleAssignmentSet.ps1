@@ -1,7 +1,7 @@
 function Compare-AzRoleAssignmentSet {
     <#
     .SYNOPSIS
-        Compares two role assignment collections and returns Added/Removed entries keyed by Scope+ObjectId+RoleDefinitionName.
+        Compares desired and current role assignment collections keyed by Scope+ObjectId+RoleDefinitionName.
     #>
     [CmdletBinding()]
     param(
@@ -29,17 +29,23 @@ function Compare-AzRoleAssignmentSet {
     foreach ($key in $currentByKey.Keys) {
         if (-not $referenceByKey.Contains($key)) {
             $diff += [PSCustomObject]@{
-                Status     = 'Added'
-                Assignment = $currentByKey[$key]
+                Status          = 'Added'
+                SuggestedAction = 'Remove role assignment'
+                Assignment      = $currentByKey[$key]
             }
         }
     }
 
     foreach ($key in $referenceByKey.Keys) {
         if (-not $currentByKey.Contains($key)) {
+            $referenceAssignment = $referenceByKey[$key]
+            $desiredState = if ($referenceAssignment.Ensure) { [string]$referenceAssignment.Ensure } else { 'Present' }
+            if ($desiredState -ne 'Present') { continue }
+
             $diff += [PSCustomObject]@{
-                Status     = 'Removed'
-                Assignment = $referenceByKey[$key]
+                Status          = 'Removed'
+                SuggestedAction = 'Add role assignment'
+                Assignment      = $referenceAssignment
             }
         }
     }

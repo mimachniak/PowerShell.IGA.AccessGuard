@@ -4,13 +4,43 @@ function New-FlatRoleAssignmentList {
     .SYNOPSIS
         Flattens nested ManagementGroup/Subscription role assignment data into a single table.
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'ScopeData')]
     param(
+        # Documents in displayName/description/resources format.
+        [Parameter(Mandatory, ParameterSetName = 'Documents')]
+        [object[]]$Documents,
+
+        [Parameter(ParameterSetName = 'ScopeData')]
         [System.Collections.Specialized.OrderedDictionary]$ManagementGroupData,
+
+        [Parameter(ParameterSetName = 'ScopeData')]
         [System.Collections.Specialized.OrderedDictionary]$SubscriptionData
     )
 
     $flat_assigments = @()
+
+    if ($PSCmdlet.ParameterSetName -eq 'Documents') {
+        foreach ($document in $Documents) {
+            foreach ($resource in @($document.resources)) {
+                $flat_assigments += [PSCustomObject]@{
+                    Document           = $document.displayName
+                    ResourceName       = $resource.displayName
+                    ResourceType       = $resource.resourceType
+                    SignInName         = $resource.properties.SignInName
+                    ObjectId           = $resource.properties.ObjectId
+                    RoleDefinitionName = $resource.properties.RoleDefinitionName
+                    Ensure             = $resource.properties.Ensure
+                    DisplayName        = $resource.properties.DisplayName
+                    Scope              = $resource.properties.Scope
+                    ScopeId            = $resource.properties.ScopeId
+                    Inherited          = $resource.properties.Inherited
+                    InheritedFrom      = $resource.properties.InheritedFrom
+                }
+            }
+        }
+
+        return $flat_assigments
+    }
 
     foreach ($mgId in $ManagementGroupData.Keys) {
         foreach ($assigment in $ManagementGroupData[$mgId]) {

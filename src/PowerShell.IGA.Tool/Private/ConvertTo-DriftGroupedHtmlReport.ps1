@@ -30,6 +30,7 @@ function ConvertTo-DriftGroupedHtmlReport {
     th, td { border: 1px solid #ddd; padding: 6px 8px; font-size: 13px; text-align: left; }
     th { background-color: #f2f2f2; }
     td.added { background-color: #e8f5e9; color: #1b5e20; font-weight: 600; }
+    td.absent { background-color: #ffebee; color: #b71c1c; font-weight: 600; }
     td.removed { background-color: #ffebee; color: #b71c1c; font-weight: 600; }
 </style>
 '@
@@ -39,7 +40,7 @@ function ConvertTo-DriftGroupedHtmlReport {
 
         if (-not $Entries -or $Entries.Count -eq 0) { return '<p><em>No changes.</em></p>' }
 
-        $columns = 'Status', 'Scope', 'DisplayName', 'SignInName', 'ObjectId', 'ObjectType', 'RoleDefinitionName'
+        $columns = 'Status', 'SuggestedAction', 'Scope', 'DisplayName', 'SignInName', 'ObjectId', 'ObjectType', 'RoleDefinitionName'
         $sb = New-Object System.Text.StringBuilder
         [void]$sb.Append('<table><thead><tr>')
         foreach ($column in $columns) { [void]$sb.Append("<th>$([System.Net.WebUtility]::HtmlEncode($column))</th>") }
@@ -49,12 +50,13 @@ function ConvertTo-DriftGroupedHtmlReport {
             $assignment = $entry.Assignment
             $status_class = switch ($entry.Status) {
                 'Added' { ' class="added"'; break }
+                'Absent' { ' class="absent"'; break }
                 'Removed' { ' class="removed"'; break }
                 default { '' }
             }
             [void]$sb.Append('<tr>')
             foreach ($column in $columns) {
-                $value = if ($column -eq 'Status') { $entry.Status } else { $assignment.$column }
+                $value = if ($column -eq 'Status') { $entry.Status } elseif ($column -eq 'SuggestedAction') { $entry.SuggestedAction } else { $assignment.$column }
                 $cell_class = if ($column -eq 'Status') { $status_class } else { '' }
                 [void]$sb.Append("<td$cell_class>$([System.Net.WebUtility]::HtmlEncode([string]$value))</td>")
             }

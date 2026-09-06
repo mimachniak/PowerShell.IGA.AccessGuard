@@ -44,8 +44,9 @@ function Get-AzRoleAssignmentReport {
                 if (-not $is_orphaned) { continue }
                 if ($is_inherited) { continue }
             }
-            elseif ($is_inherited -and -not $IncludeInherited) {
-                continue
+            else {
+                if ($is_orphaned) { continue }
+                if ($is_inherited -and -not $IncludeInherited) { continue }
             }
 
             $role_assigments += [PSCustomObject]@{
@@ -83,8 +84,9 @@ function Get-AzRoleAssignmentReport {
                 if (-not $is_orphaned) { continue }
                 if ($is_inherited) { continue }
             }
-            elseif ($is_inherited -and -not $IncludeInherited) {
-                continue
+            else {
+                if ($is_orphaned) { continue }
+                if ($is_inherited -and -not $IncludeInherited) { continue }
             }
 
             $role_assigments += [PSCustomObject]@{
@@ -105,10 +107,22 @@ function Get-AzRoleAssignmentReport {
 
     }
 
+    # Document view in displayName/description/resources format, one document per gathered scope type
+    $documents = @()
+
+    if (-not $SubscriptionOnly) {
+        $documents += ConvertTo-RoleAssignmentDocument -DisplayName 'ManagementGroups' -ScopeType 'ManagementGroup' -ScopeData $role_assigment_data_management_groups
+    }
+
+    if (-not $ManagementGroupOnly) {
+        $documents += ConvertTo-RoleAssignmentDocument -DisplayName 'Subscriptions' -ScopeType 'Subscription' -ScopeData $role_assigment_data_subscriptions
+    }
+
     return [PSCustomObject]@{
         Subscriptions         = $role_assigment_data_subscriptions
         ManagementGroups      = $role_assigment_data_management_groups
         SubscriptionNames     = $subscription_names
         ManagementGroupNames  = $management_group_names
+        Documents             = $documents
     }
 }

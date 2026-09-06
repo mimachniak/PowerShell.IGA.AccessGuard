@@ -16,6 +16,9 @@ function Clear-AzRoleOrphaned {
         # Actually remove the orphaned role assignments from Azure. Default behavior only reports them.
         [switch]$Remove,
 
+        # Write a report file instead of only returning the data. Defaults to off.
+        [switch]$GenerateReport,
+
         # Report format. 'Terminal' prints a table to the host instead of writing a file. Defaults to Json.
         [ValidateSet('Json', 'Html', 'Csv', 'JUnit')]
         [string]$OutputFormat = 'Json',
@@ -28,31 +31,30 @@ $report = Get-AzRoleAssignmentReport -OrphanedOnly
 $role_assigment_data_subscriptions = $report.Subscriptions
 $role_assigment_data_management_groups = $report.ManagementGroups
 
-# Join both results into a single object, nested by ManagementGroup/Subscription ID
+# One document per scope type in displayName/description/resources format
 
 write-Output "Exporting Role Assignments from Subscriptions and Management Groups..."
 
-$role_assigment_export = [PSCustomObject]@{
-    ManagementGroup = [PSCustomObject]$role_assigment_data_management_groups
-    Subscription = [PSCustomObject]$role_assigment_data_subscriptions
-}
+$role_assigment_export = @($report.Documents)
 
-switch ($OutputFormat) {
-    'Json' {
-        $role_assigment_export | ConvertTo-Json -Depth 5 | Out-File -FilePath "$OutputPath.json" -Encoding utf8
-        Write-Host "Report written to $OutputPath.json"
-    }
-    'Html' {
-        ConvertTo-GroupedHtmlReport -Title 'Azure Orphaned Role Assignment Report' -ManagementGroupData $role_assigment_data_management_groups -SubscriptionData $role_assigment_data_subscriptions -ManagementGroupNames $report.ManagementGroupNames -SubscriptionNames $report.SubscriptionNames -GeneratedBy 'Remove-AzRoleOrphaned' | Out-File -FilePath "$OutputPath.html" -Encoding utf8
-        Write-Host "Report written to $OutputPath.html"
-    }
-    'Csv' {
-        New-FlatRoleAssignmentList -ManagementGroupData $role_assigment_data_management_groups -SubscriptionData $role_assigment_data_subscriptions | Export-Csv -Path "$OutputPath.csv" -NoTypeInformation -Encoding utf8
-        Write-Host "Report written to $OutputPath.csv"
-    }
-    'JUnit' {
-        ConvertTo-RoleAssignmentJUnitXml -ManagementGroupData $role_assigment_data_management_groups -SubscriptionData $role_assigment_data_subscriptions | Out-File -FilePath "$OutputPath.xml" -Encoding utf8
-        Write-Host "Report written to $OutputPath.xml"
+if ($GenerateReport) {
+    switch ($OutputFormat) {
+        'Json' {
+            $role_assigment_export | ConvertTo-Json -Depth 10 | Out-File -FilePath "$OutputPath.json" -Encoding utf8
+            Write-Host "Report written to $OutputPath.json"
+        }
+        'Html' {
+            ConvertTo-GroupedHtmlReport -Title 'Azure Orphaned Role Assignment Report' -Documents $role_assigment_export -ManagementGroupNames $report.ManagementGroupNames -SubscriptionNames $report.SubscriptionNames -GeneratedBy 'Remove-AzRoleOrphaned' | Out-File -FilePath "$OutputPath.html" -Encoding utf8
+            Write-Host "Report written to $OutputPath.html"
+        }
+        'Csv' {
+            New-FlatRoleAssignmentList -Documents $role_assigment_export | Export-Csv -Path "$OutputPath.csv" -NoTypeInformation -Encoding utf8
+            Write-Host "Report written to $OutputPath.csv"
+        }
+        'JUnit' {
+            ConvertTo-RoleAssignmentJUnitXml -ManagementGroupData $role_assigment_data_management_groups -SubscriptionData $role_assigment_data_subscriptions | Out-File -FilePath "$OutputPath.xml" -Encoding utf8
+            Write-Host "Report written to $OutputPath.xml"
+        }
     }
 }
 
@@ -75,7 +77,7 @@ foreach ($role_assigment in $all_orphaned) {
 
 }
 
-return $role_assigment_export | ConvertTo-Json -Depth 6
+return $role_assigment_export
 
 }
 
