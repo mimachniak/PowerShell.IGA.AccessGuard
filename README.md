@@ -2,10 +2,16 @@
 
 An Identity Governance and Administration (IGA) PowerShell module for exporting, monitoring, detecting drift, and reconciling Azure Role-Based Access Control (RBAC) role assignments across Subscriptions and Management Groups.
 
+![PowerShell Gallery](https://img.shields.io/powershellgallery/v/PowerShell.IGA.AccessGuard.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Platform](https://img.shields.io/badge/platform-PowerShell%207%2B-lightgrey)
+
+
 ## Table of Contents
 
 - [Key Features](#-key-features)
 - [Prerequisites & Requirements](#-prerequisites--requirements)
+- [Installation](#installation)
 - [Exported Functions](#-exported-functions)
 - [Export-AzRoleAccessGuard](#1-export-azroleaccessguard)
 - [Invoke-AzRoleAccessGuardDrifft](#2-invoke-azroleaccessguarddrifft)
@@ -30,6 +36,16 @@ An Identity Governance and Administration (IGA) PowerShell module for exporting,
 - **Required Modules**:
   - `Az.Accounts` (>= 15.2)
   - `Az.Resources` (>= 15.2)
+
+## Installation
+
+Install [PowerShell.IGA.AccessGuard from the PowerShell Gallery](https://www.powershellgallery.com/packages/PowerShell.IGA.AccessGuard)
+for the current user, including its required modules:
+
+```powershell
+Install-Module -Name PowerShell.IGA.AccessGuard -Repository PSGallery -Scope CurrentUser -IncludeDependencies
+Import-Module -Name PowerShell.IGA.AccessGuard
+```
 
 ---
 
