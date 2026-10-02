@@ -13,3 +13,4 @@
 - Support export. html, json, csv
 - Support drifft: html, jsn, csv, junit
 - Update Role assigment base on baseline and drifft
+- Add bicep export that can be used for deployment

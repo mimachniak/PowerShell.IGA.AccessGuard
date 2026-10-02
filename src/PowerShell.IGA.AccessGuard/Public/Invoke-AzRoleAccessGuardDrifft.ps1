@@ -25,7 +25,7 @@ function Invoke-AzRoleAccessGuardDrifft {
         [string]$OutputPath = (Join-Path (Split-Path -Parent $PSScriptRoot) 'output_diff'),
 
         # Output format for the drift report. 'Terminal' prints a table to the host instead of writing a file. Defaults to Json.
-        [ValidateSet('Terminal', 'Json', 'Html', 'Csv', 'JUnit')]
+        [ValidateSet('Terminal', 'Json', 'Html', 'Csv', 'JUnit', 'Bicep')]
         [string]$OutputFormat = 'Json'
     )
 
@@ -44,62 +44,7 @@ function Invoke-AzRoleAccessGuardDrifft {
     }
 
     $reference_export = Get-Content -Path $ReferenceFile -Raw | ConvertFrom-Json
-
-    # Convert document-style exports into the grouped assignment shape used by the comparison engine.
-    if ($reference_export -is [System.Array] -or $reference_export.PSObject.Properties.Name -contains 'resources') {
-        $normalized_reference = [ordered]@{
-            ManagementGroup = [ordered]@{}
-            Subscription = [ordered]@{}
-        }
-
-        foreach ($document in @($reference_export)) {
-            $section = switch ($document.displayName) {
-                'ManagementGroups' { 'ManagementGroup'; break }
-                'Subscriptions' { 'Subscription'; break }
-                default { continue }
-            }
-
-            foreach ($resource in @($document.resources)) {
-                $properties = $resource.properties
-                if (-not $properties -or -not $properties.ScopeId -or -not $properties.ObjectId -or -not $properties.RoleDefinitionName) {
-                    Write-Warning "Skipping invalid role assignment in document '$($document.displayName)'."
-                    continue
-                }
-
-                $scope_id = [string]$properties.ScopeId
-                $assignment_scope = if ($scope_id.StartsWith('/')) {
-                    $scope_id
-                }
-                elseif ($section -eq 'Subscription') {
-                    "/subscriptions/$scope_id"
-                }
-                else {
-                    "/providers/Microsoft.Management/managementGroups/$scope_id"
-                }
-
-                if (-not $normalized_reference[$section].Contains($scope_id)) {
-                    $normalized_reference[$section][$scope_id] = @()
-                }
-
-                $normalized_reference[$section][$scope_id] = @($normalized_reference[$section][$scope_id]) + [PSCustomObject]@{
-                    Scope              = $assignment_scope
-                    Inherited          = $properties.Inherited
-                    InheritedFrom      = $properties.InheritedFrom
-                    DisplayName        = $properties.DisplayName
-                    SignInName         = $properties.SignInName
-                    ObjectId           = $properties.ObjectId
-                    ObjectType         = $resource.resourceType
-                    RoleDefinitionName = $properties.RoleDefinitionName
-                    Ensure             = if ($properties.Ensure) { $properties.Ensure } else { 'Present' }
-                }
-            }
-        }
-
-        $reference_export = [PSCustomObject]@{
-            ManagementGroup = [PSCustomObject]$normalized_reference.ManagementGroup
-            Subscription    = [PSCustomObject]$normalized_reference.Subscription
-        }
-    }
+    $reference_export = ConvertFrom-RoleAssignmentExportDocument -ExportData $reference_export
 
     $drift_result = [ordered]@{
         ManagementGroup = [ordered]@{}
@@ -148,38 +93,7 @@ function Invoke-AzRoleAccessGuardDrifft {
         Subscription = [PSCustomObject]$drift_result.Subscription
     }
 
-    $drift_documents = @()
-    foreach ($section in 'ManagementGroup', 'Subscription') {
-        $resources = @()
-        foreach ($scope_id in $drift_result[$section].Keys) {
-            foreach ($entry in $drift_result[$section][$scope_id]) {
-                $assignment = $entry.Assignment
-                $resources += [PSCustomObject]@{
-                    displayName  = "AzRole-$($assignment.DisplayName)"
-                    resourceType = $assignment.ObjectType
-                    properties   = [PSCustomObject]@{
-                        SignInName         = $assignment.SignInName
-                        ObjectId           = $assignment.ObjectId
-                        RoleDefinitionName = $assignment.RoleDefinitionName
-                        Ensure             = if ($entry.Status -eq 'Removed') { 'Present' } else { 'Absent' }
-                        DisplayName        = $assignment.DisplayName
-                        Scope              = $section
-                        ScopeId            = $scope_id
-                        Inherited          = $assignment.Inherited
-                        InheritedFrom      = $assignment.InheritedFrom
-                        Status             = $entry.Status
-                        SuggestedAction    = $entry.SuggestedAction
-                    }
-                }
-            }
-        }
-
-        $drift_documents += [PSCustomObject]@{
-            displayName = if ($section -eq 'ManagementGroup') { 'ManagementGroups' } else { 'Subscriptions' }
-            description = 'Role assignment drift detected against the reference export.'
-            resources   = $resources
-        }
-    }
+    $drift_documents = ConvertTo-RoleAssignmentDriftDocuments -DriftResult $drift_result
 
     switch ($OutputFormat) {
         'Terminal' {
@@ -200,6 +114,35 @@ function Invoke-AzRoleAccessGuardDrifft {
         'JUnit' {
             ConvertTo-DriftJUnitXml -ScopeResults $scope_test_results | Out-File -FilePath "$OutputPath.xml" -Encoding utf8
             Write-Host "Drift report written to $OutputPath.xml"
+        }
+        'Bicep' {
+            $bicep_management_group_data = [ordered]@{}
+            $bicep_subscription_data = [ordered]@{}
+            $removal_count = 0
+
+            foreach ($section in 'ManagementGroup', 'Subscription') {
+                foreach ($scope_id in $drift_result[$section].Keys) {
+                    $scope_changes = @($drift_result[$section][$scope_id])
+                    $removal_count += @($scope_changes | Where-Object { $_.Status -eq 'Added' }).Count
+                    $assignments_to_add = @($scope_changes | Where-Object { $_.Status -eq 'Removed' } | ForEach-Object { $_.Assignment })
+
+                    if ($assignments_to_add.Count -gt 0) {
+                        if ($section -eq 'ManagementGroup') {
+                            $bicep_management_group_data[$scope_id] = $assignments_to_add
+                        }
+                        else {
+                            $bicep_subscription_data[$scope_id] = $assignments_to_add
+                        }
+                    }
+                }
+            }
+
+            $bicep_export = ConvertTo-RoleAssignmentBicep -SubscriptionData $bicep_subscription_data -ManagementGroupData $bicep_management_group_data
+            $bicep_export | Out-File -FilePath "$OutputPath.bicep" -Encoding utf8
+            Write-Host "Bicep drift deployment written to $OutputPath.bicep"
+            if ($removal_count -gt 0) {
+                Write-Warning "$removal_count added role assignment(s) require removal. The AVM Bicep modules only create assignments, so these changes are not included in the Bicep output."
+            }
         }
     }
 

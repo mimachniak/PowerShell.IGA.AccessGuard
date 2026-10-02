@@ -12,7 +12,7 @@ function Export-AzRoleAccessGuard {
     [CmdletBinding()]
     param(
         # Output format for the snapshot file. Defaults to Json.
-        [ValidateSet('Json', 'Html', 'Csv')]
+        [ValidateSet('Json', 'Html', 'Csv', 'Bicep')]
         [string]$OutputFormat = 'Json',
 
         # Output file path without extension; the correct extension is appended based on -OutputFormat. Defaults to the module root.
@@ -52,6 +52,11 @@ switch ($OutputFormat) {
         $flat_assigments = New-FlatRoleAssignmentList -Documents $role_assigment_export
         $flat_assigments | Export-Csv -Path "$OutputPath.csv" -NoTypeInformation -Encoding utf8
         Write-Host "Snapshot written to $OutputPath.csv"
+    }
+    'Bicep' {
+        $bicep_export = ConvertTo-RoleAssignmentBicep -SubscriptionData $role_assigment_data_subscriptions -ManagementGroupData $role_assigment_data_management_groups
+        $bicep_export | Out-File -FilePath "$OutputPath.bicep" -Encoding utf8
+        Write-Host "Snapshot written to $OutputPath.bicep"
     }
 }
 

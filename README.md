@@ -2,9 +2,21 @@
 
 An Identity Governance and Administration (IGA) PowerShell module for exporting, monitoring, detecting drift, and reconciling Azure Role-Based Access Control (RBAC) role assignments across Subscriptions and Management Groups.
 
+## Table of Contents
+
+- [Key Features](#-key-features)
+- [Prerequisites & Requirements](#-prerequisites--requirements)
+- [Exported Functions](#-exported-functions)
+- [Export-AzRoleAccessGuard](#1-export-azroleaccessguard)
+- [Invoke-AzRoleAccessGuardDrifft](#2-invoke-azroleaccessguarddrifft)
+- [Compare-AzRoleAccessGuardExport](#3-compare-azroleaccessguardexport)
+- [Update-AzRoleAccessGuard](#4-update-azroleaccessguard)
+- [Clear-AzRoleOrphaned](#5-clear-azroleorphaned)
+- [Governance Workflow Example](#-governance-workflow-example)
+
 ## 🚀 Key Features
 
-- **Snapshot Export**: Export live Azure RBAC role assignments across Management Groups and Subscriptions into structured formats (JSON, HTML, or CSV).
+- **Snapshot Export**: Export live Azure RBAC role assignments across Management Groups and Subscriptions into JSON, HTML, CSV, or deployable AVM-based Bicep.
 - **Drift Detection**: Compare current Azure access against a reference baseline snapshot and produce detailed drift reports in Terminal, JSON, HTML, CSV, or JUnit XML (ideal for CI/CD pipelines).
 - **Automated Remediation**: Reconcile detected access drift by granting missing role assignments or revoking unauthorized access.
 - **Orphaned Access Cleanup**: Identify and clean up orphaned role assignments where security principals no longer exist in Microsoft Entra ID.
@@ -23,7 +35,7 @@ An Identity Governance and Administration (IGA) PowerShell module for exporting,
 ## 🛠️ Exported Functions
 
 ### 1. `Export-AzRoleAccessGuard`
-Exports a snapshot of active Azure RBAC role assignments across Subscriptions and Management Groups into a structured configuration file.
+Exports a snapshot of active Azure RBAC role assignments across Subscriptions and Management Groups. Bicep output uses the AVM role-assignment modules and omits orphaned principals and assignments with missing or unknown role names.
 
 #### Syntax
 ```powershell
@@ -36,7 +48,7 @@ Export-AzRoleAccessGuard
 ```
 
 #### Parameters
-- `-OutputFormat`: Format of the output snapshot (`Json`, `Html`, `Csv`). Default is `Json`.
+- `-OutputFormat`: Format of the output snapshot (`Json`, `Html`, `Csv`, `Bicep`). Default is `Json`.
 - `-OutputPath`: Destination file path without file extension. Default is `./output`.
 - `-SubscriptionOnly`: Export role assignments for Subscriptions only.
 - `-ManagementGroupOnly`: Export role assignments for Management Groups only.
@@ -49,6 +61,53 @@ Export-AzRoleAccessGuard -OutputFormat Json -OutputPath "C:\baselines\azure-rbac
 
 # Export Subscriptions only into an HTML report
 Export-AzRoleAccessGuard -OutputFormat Html -SubscriptionOnly -OutputPath "C:\reports\sub-rbac"
+
+# Export Management Group and Subscription assignments as an AVM-based Bicep deployment
+Export-AzRoleAccessGuard -OutputFormat Bicep -OutputPath "C:\baselines\azure-rbac"
+```
+
+The generated Bicep template targets the tenant scope and can be deployed with
+`az deployment tenant create --location <location> --template-file C:\baselines\azure-rbac.bicep`.
+It references the AVM [management-group scope module](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/authorization/role-assignment/mg-scope)
+and [subscription scope module](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/authorization/role-assignment/sub-scope),
+using versions `0.1.2` and `0.1.1`, respectively. Inherited assignments are emitted once at their
+source scope. The template includes Bicep metadata for the generating tool and UTC export time,
+separate `// MARK:` sections for management-group and subscription assignments, and one AVM module
+per deployable assignment. Orphaned principals and assignments with missing or unknown role names
+are omitted; AVM telemetry is disabled in generated modules.
+
+Example output (IDs and timestamp are illustrative):
+
+```bicep
+targetScope = 'tenant'
+
+metadata generatedBy = 'PowerShell.IGA.AccessGuard'
+metadata exportedAtUtc = '2026-10-02T20:10:14Z'
+
+// MARK: Management Group Role Assignments
+
+module mod_role_assignment_mg_reader_aaaaaaaa_aaaa_aaaa_aaaa_aaaaaaaaaaaa 'br/public:avm/res/authorization/role-assignment/mg-scope:0.1.2' = {
+    scope: managementGroup('Platform')
+    params: {
+        principalId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+        roleDefinitionIdOrName: 'Reader'
+        managementGroupId: 'Platform'
+        principalType: 'Group'
+        enableTelemetry: false
+    }
+}
+
+// MARK: Subscription Role Assignments
+
+module mod_role_assignment_sub_contributor_bbbbbbbb_bbbb_bbbb_bbbb_bbbbbbbbbbbb 'br/public:avm/res/authorization/role-assignment/sub-scope:0.1.1' = {
+    scope: subscription('cccccccc-cccc-cccc-cccc-cccccccccccc')
+    params: {
+        principalId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+        roleDefinitionIdOrName: 'Contributor'
+        principalType: 'ServicePrincipal'
+        enableTelemetry: false
+    }
+}
 ```
 
 ---
@@ -67,7 +126,7 @@ Invoke-AzRoleAccessGuardDrifft
 #### Parameters
 - `-ReferenceFile`: Path to the baseline snapshot file (JSON) generated by `Export-AzRoleAccessGuard`.
 - `-OutputPath`: Destination file path for saving the drift report without extension. Default is `./output_diff`.
-- `-OutputFormat`: Drift report output format (`Terminal`, `Json`, `Html`, `Csv`, `JUnit`). Default is `Json`.
+- `-OutputFormat`: Drift report output format (`Terminal`, `Json`, `Html`, `Csv`, `JUnit`, `Bicep`). Default is `Json`.
 
 #### Examples
 ```powershell
@@ -76,11 +135,48 @@ Invoke-AzRoleAccessGuardDrifft -ReferenceFile "C:\baselines\azure-rbac-baseline.
 
 # Output JUnit XML report for Azure DevOps or GitHub Actions CI/CD pipelines
 Invoke-AzRoleAccessGuardDrifft -ReferenceFile "C:\baselines\azure-rbac-baseline.json" -OutputFormat JUnit -OutputPath "./drift-results"
+
+# Export AVM Bicep modules for baseline assignments missing from Azure
+Invoke-AzRoleAccessGuardDrifft -ReferenceFile "C:\baselines\azure-rbac-baseline.json" -OutputFormat Bicep -OutputPath "./drift-to-add"
+```
+
+Bicep drift output uses the same AVM management-group (`0.1.2`) and subscription (`0.1.1`)
+modules as the full export. It includes missing baseline assignments to add. Assignments present in
+Azure but absent from the baseline require removal; because these AVM modules only create role
+assignments, those changes are excluded and reported as a warning.
+
+---
+
+### 3. `Compare-AzRoleAccessGuardExport`
+Compares two previously exported role assignment JSON files, for example a full export (`-IncludeInherited`) against a baseline export, without querying Azure.
+
+#### Syntax
+```powershell
+Compare-AzRoleAccessGuardExport
+    [-FullExportFile] <String>
+    [-ExportFile] <String>
+    [[-OutputPath] <String>]
+    [[-OutputFormat] <String>]
+```
+
+#### Parameters
+- `-FullExportFile`: Path to the full export file (JSON) treated as the current/actual state.
+- `-ExportFile`: Path to the baseline export file (JSON) treated as the reference/desired state.
+- `-OutputPath`: Destination file path for saving the comparison report without extension. Default is `./output_export_diff`.
+- `-OutputFormat`: Comparison report output format (`Terminal`, `Json`, `Html`, `Csv`, `JUnit`). Default is `Json`.
+
+#### Examples
+```powershell
+# Compare a full export against the baseline export and print results to the terminal
+Compare-AzRoleAccessGuardExport -FullExportFile "C:\exports\full-export.json" -ExportFile "C:\baselines\azure-rbac-baseline.json" -OutputFormat Terminal
+
+# Write an HTML comparison report
+Compare-AzRoleAccessGuardExport -FullExportFile "C:\exports\full-export.json" -ExportFile "C:\baselines\azure-rbac-baseline.json" -OutputFormat Html -OutputPath "./export-comparison"
 ```
 
 ---
 
-### 3. `Update-AzRoleAccessGuard`
+### 4. `Update-AzRoleAccessGuard`
 Reconciles Azure RBAC assignments by applying corrections specified in a drift report file (`output_diff.json`). Adds missing role assignments and revokes unauthorized ones.
 
 #### Syntax
@@ -109,7 +205,7 @@ Update-AzRoleAccessGuard -DriftFile "./output_diff.json" -Force
 
 ---
 
-### 4. `Clear-AzRoleOrphaned`
+### 5. `Clear-AzRoleOrphaned`
 Identifies and optionally removes orphaned role assignments in Azure (assignments pointing to deleted or missing Entra ID principals).
 
 #### Syntax

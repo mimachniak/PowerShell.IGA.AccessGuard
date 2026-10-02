@@ -35,6 +35,7 @@
     # Functions to export from this module
     FunctionsToExport = @(
         'Clear-AzRoleOrphaned',
+        'Compare-AzRoleAccessGuardExport',
         'Export-AzRoleAccessGuard',
         'Invoke-AzRoleAccessGuardDrifft',
         'Update-AzRoleAccessGuard'
@@ -55,8 +56,8 @@
     PrivateData      = @{
         PSData = @{
             # ExternalModuleDependencies = @('Microsoft.PowerShell.Management', 'Microsoft.PowerShell.Utility')
-            ProjectUri                 = 'https://github.com/mimachniak/AzureResources-NameGenerator'
-            LicenseUri                 = 'https://github.com/mimachniak/AzureResources-NameGenerator/blob/main/LICENSE'
+            ProjectUri                 = 'https://github.com/mimachniak/PowerShell.IGA.AccessGuard'
+            LicenseUri                 = 'https://github.com/mimachniak/PowerShell.IGA.AccessGuard/blob/main/LICENSE'
             IconUri = ''
             Tags                       = @('Azure', 'RBAC', 'Generator', 'Validation')
 
@@ -70,6 +71,7 @@
                 - Support export. html, json, csv
                 - Support drifft: html, jsn, csv, junit
                 - Update Role assigment base on baseline and drifft.
+                - Add bicep export file that can be used to deploy the role assignments.
             '
 
             # Prerelease string of this module
