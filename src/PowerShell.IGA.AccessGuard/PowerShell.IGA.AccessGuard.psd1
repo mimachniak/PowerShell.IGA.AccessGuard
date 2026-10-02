@@ -55,7 +55,7 @@
 
     PrivateData      = @{
         PSData = @{
-            # ExternalModuleDependencies = @('Microsoft.PowerShell.Management', 'Microsoft.PowerShell.Utility')
+            ExternalModuleDependencies = @('Az.Resources', 'Az.Accounts')
             ProjectUri                 = 'https://github.com/mimachniak/PowerShell.IGA.AccessGuard'
             LicenseUri                 = 'https://github.com/mimachniak/PowerShell.IGA.AccessGuard/blob/main/LICENSE'
             IconUri = ''
