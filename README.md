@@ -9,6 +9,7 @@ An Identity Governance and Administration (IGA) PowerShell module for exporting,
 - [Exported Functions](#-exported-functions)
 - [Export-AzRoleAccessGuard](#1-export-azroleaccessguard)
 - [Invoke-AzRoleAccessGuardDrifft](#2-invoke-azroleaccessguarddrifft)
+- [Publish JUnit results in Azure DevOps](#publish-junit-results-in-azure-devops)
 - [Compare-AzRoleAccessGuardExport](#3-compare-azroleaccessguardexport)
 - [Update-AzRoleAccessGuard](#4-update-azroleaccessguard)
 - [Clear-AzRoleOrphaned](#5-clear-azroleorphaned)
@@ -144,6 +145,41 @@ Bicep drift output uses the same AVM management-group (`0.1.2`) and subscription
 modules as the full export. It includes missing baseline assignments to add. Assignments present in
 Azure but absent from the baseline require removal; because these AVM modules only create role
 assignments, those changes are excluded and reported as a warning.
+
+#### Publish JUnit results in Azure DevOps
+
+On an Azure-authenticated agent with the module installed, generate the JUnit report and publish it
+with `PublishTestResults@2`:
+
+```yaml
+trigger:
+- main
+
+pool:
+    vmImage: ubuntu-latest
+
+steps:
+- pwsh: |
+        $driftParams = @{
+            ReferenceFile = "$(Build.SourcesDirectory)/baseline.json"
+            OutputFormat = 'JUnit'
+            OutputPath = "$(Build.SourcesDirectory)/output_diff"
+        }
+        Invoke-AzRoleAccessGuardDrifft @driftParams
+    displayName: Generate JUnit drift results
+
+- task: PublishTestResults@2
+    condition: succeededOrFailed()
+    inputs:
+        testResultsFormat: JUnit
+        testResultsFiles: output_diff.xml
+        searchFolder: '$(Build.SourcesDirectory)'
+        failTaskOnFailedTests: false
+```
+
+The published drift findings appear in the Azure DevOps Tests view:
+
+![Azure DevOps published JUnit drift test results](image/ado-drifft-test-report-v1.png)
 
 ---
 
